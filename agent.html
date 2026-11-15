@@ -1,0 +1,1465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Form Assistant &amp; Document Workspace</title>
+  <style>
+    :root {
+      --bg-workspace: #f3f4f6;
+      --bg-surface: #ffffff;
+      --bg-sidebar: #f9fafb;
+      --bg-subtle: #f3f4f6;
+      --text-primary: #111827;
+      --text-secondary: #374151;
+      --text-muted: #6b7280;
+      --border-color: #d1d5db;
+      --border-light: #e5e7eb;
+      --accent-blue: #2563eb;
+      --accent-blue-hover: #1d4ed8;
+      --accent-blue-tint: #eff6ff;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: var(--font-sans);
+      background-color: var(--bg-workspace);
+      color: var(--text-primary);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Split-Screen Layout */
+    .app-container {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    /* Left Sidebar: Form Assistant */
+    .sidebar {
+      width: 390px;
+      min-width: 320px;
+      max-width: 460px;
+      background-color: var(--bg-surface);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .sidebar-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--bg-surface);
+    }
+
+    .sidebar-title-group h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .sidebar-title-group p {
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .api-config-btn {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .api-config-btn:hover {
+      background-color: var(--bg-subtle);
+      border-color: #9ca3af;
+    }
+
+    .chat-history {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      background-color: var(--bg-sidebar);
+    }
+
+    .chat-message {
+      display: flex;
+      flex-direction: column;
+      max-width: 90%;
+    }
+
+    .chat-message.user {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+
+    .chat-message.assistant {
+      align-self: flex-start;
+      align-items: flex-start;
+    }
+
+    .message-sender {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      padding: 0 2px;
+    }
+
+    .message-bubble {
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .chat-message.user .message-bubble {
+      background-color: var(--accent-blue);
+      color: #ffffff;
+      border-bottom-right-radius: 3px;
+    }
+
+    .chat-message.assistant .message-bubble {
+      background-color: var(--bg-surface);
+      color: var(--text-primary);
+      border: 1px solid var(--border-light);
+      border-bottom-left-radius: 3px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
+    .tool-badge {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent-blue);
+      background-color: var(--accent-blue-tint);
+      border: 1px solid #bfdbfe;
+      border-radius: 999px;
+    }
+
+    .chat-input-area {
+      padding: 14px 16px;
+      border-top: 1px solid var(--border-light);
+      background-color: var(--bg-surface);
+    }
+
+    .chat-form {
+      display: flex;
+      gap: 8px;
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: var(--font-sans);
+      color: var(--text-primary);
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .chat-input:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .chat-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* Buttons */
+    .btn {
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 9px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background-color: var(--accent-blue);
+      color: #ffffff;
+      border-color: var(--accent-blue);
+    }
+
+    .btn-primary:hover {
+      background-color: var(--accent-blue-hover);
+      border-color: var(--accent-blue-hover);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background-color: var(--bg-surface);
+      color: var(--text-primary);
+      border-color: var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--bg-subtle);
+      border-color: #9ca3af;
+    }
+
+    /* Right Main Workspace */
+    .workspace {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-workspace);
+    }
+
+    .toolbar {
+      background-color: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .toolbar-status {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .document-scroll-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 36px 28px 56px;
+    }
+
+    /* Paper Form Surface */
+    .paper-form {
+      max-width: 760px;
+      margin: 0 auto;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      padding: 48px 52px;
+    }
+
+    .paper-header {
+      border-bottom: 2px solid var(--text-primary);
+      padding-bottom: 16px;
+      margin-bottom: 28px;
+    }
+
+    .paper-kicker {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .paper-title {
+      margin: 0;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.25;
+      word-break: break-word;
+    }
+
+    .form-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      letter-spacing: 0.01em;
+    }
+
+    .form-control {
+      width: 100%;
+      font-family: var(--font-sans);
+      font-size: 15px;
+      line-height: 1.5;
+      color: var(--text-primary);
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 10px 12px;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.35s ease;
+    }
+
+    .form-control:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+    }
+
+    textarea.form-control {
+      resize: vertical;
+      min-height: 110px;
+    }
+
+    .field-updated {
+      background-color: var(--accent-blue-tint);
+      border-color: var(--accent-blue);
+    }
+
+    /* Optional API Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(17, 24, 39, 0.35);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 16px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      width: 100%;
+      max-width: 440px;
+      padding: 24px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+    }
+
+    .modal-card h3 {
+      margin: 0 0 8px;
+      font-size: 17px;
+      color: var(--text-primary);
+    }
+
+    .modal-card p {
+      margin: 0 0 16px;
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    /* Responsive Layout for Narrow Screens */
+    @media (max-width: 860px) {
+      .app-container {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+        overflow: visible;
+      }
+
+      .sidebar {
+        width: 100%;
+        max-width: none;
+        height: 460px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .workspace {
+        overflow: visible;
+        height: auto;
+      }
+
+      .paper-form {
+        padding: 28px 22px;
+      }
+    }
+
+    /* Clean Print / Save PDF Layout */
+    @page {
+      margin: 0.65in;
+    }
+
+    @media print {
+      html, body {
+        height: auto;
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+
+      .sidebar,
+      .toolbar,
+      .modal-backdrop {
+        display: none !important;
+      }
+
+      .app-container,
+      .workspace,
+      .document-scroll-area {
+        display: block !important;
+        height: auto !important;
+        width: 100% !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #ffffff !important;
+      }
+
+      .paper-form {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+
+      .paper-header {
+        border-bottom: 2px solid #000000 !important;
+      }
+
+      .form-control {
+        border: 1px solid #d1d5db !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        box-shadow: none !important;
+      }
+
+      textarea.form-control {
+        overflow: visible !important;
+        resize: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Left Sidebar: Form Assistant -->
+    <aside class="sidebar" aria-label="Form Assistant Sidebar">
+      <header class="sidebar-header">
+        <div class="sidebar-title-group">
+          <h2>Form Assistant</h2>
+          <p id="assistantModeLabel">Built-in Structured Agent</p>
+        </div>
+        <button type="button" class="api-config-btn" id="openApiModalBtn">API Settings</button>
+      </header>
+
+      <div class="chat-history" id="chatHistory" role="log" aria-live="polite" aria-label="Chat history"></div>
+
+      <div class="chat-input-area">
+        <form class="chat-form" id="chatForm">
+          <label for="chatInput" class="sr-only">Message the Form Assistant</label>
+          <input
+            type="text"
+            id="chatInput"
+            class="chat-input"
+            placeholder="Describe a form, ask for templates, or edit a field..."
+            autocomplete="off"
+          />
+          <button type="submit" id="sendBtn" class="btn btn-primary">Send</button>
+        </form>
+      </div>
+    </aside>
+
+    <!-- Right Main Workspace -->
+    <main class="workspace" aria-label="Document Workspace">
+      <div class="toolbar">
+        <span class="toolbar-status" id="toolbarStatus">Document ready</span>
+        <div class="toolbar-actions">
+          <button type="button" class="btn btn-secondary" id="clearFormBtn">Clear Form</button>
+          <button type="button" class="btn btn-secondary" id="downloadFileBtn">Download File</button>
+          <button type="button" class="btn btn-primary" id="printPdfBtn">Print / Save PDF</button>
+        </div>
+      </div>
+
+      <div class="document-scroll-area">
+        <article class="paper-form" aria-label="Printable Paper Form">
+          <div class="paper-header">
+            <div class="paper-kicker">Official Document Workspace</div>
+            <h1 class="paper-title" id="documentTitle">Blank Standard Form</h1>
+          </div>
+
+          <form class="form-fields" id="documentForm" onsubmit="return false;">
+            <div class="form-group">
+              <label for="formTitle">Form Title</label>
+              <input
+                type="text"
+                id="formTitle"
+                name="formTitle"
+                class="form-control"
+                placeholder="Enter form title (defaults to Blank Standard Form)"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="department">Department</label>
+              <input
+                type="text"
+                id="department"
+                name="department"
+                class="form-control"
+                placeholder="e.g., Engineering, Marketing, Finance"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="priority">Priority Level</label>
+              <input
+                type="text"
+                id="priority"
+                name="priority"
+                class="form-control"
+                placeholder="e.g., Low, Normal, High, Urgent"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="summary">Summary / Description</label>
+              <textarea
+                id="summary"
+                name="summary"
+                class="form-control"
+                rows="5"
+                placeholder="Provide a detailed summary or justification..."
+              ></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="notes">Additional Notes</label>
+              <textarea
+                id="notes"
+                name="notes"
+                class="form-control"
+                rows="4"
+                placeholder="Add approvals, deadlines, budget codes, or special instructions..."
+              ></textarea>
+            </div>
+          </form>
+        </article>
+      </div>
+    </main>
+  </div>
+
+  <!-- Optional Live LLM API Settings Modal -->
+  <div class="modal-backdrop" id="apiModal" role="dialog" aria-modal="true" aria-labelledby="apiModalTitle">
+    <div class="modal-card">
+      <h3 id="apiModalTitle">LLM API Settings (Optional)</h3>
+      <p>
+        By default, the assistant runs locally with zero setup using structured tool calling.
+        Optionally provide an OpenAI-compatible API key to route chat requests to a live model.
+      </p>
+      <div class="form-fields">
+        <div class="form-group">
+          <label for="apiEndpointInput">API Endpoint</label>
+          <input type="text" id="apiEndpointInput" class="form-control" value="https://api.openai.com/v1/chat/completions" />
+        </div>
+        <div class="form-group">
+          <label for="apiModelInput">Model</label>
+          <input type="text" id="apiModelInput" class="form-control" value="gpt-4o-mini" />
+        </div>
+        <div class="form-group">
+          <label for="apiKeyInput">API Key (leave blank for built-in local agent)</label>
+          <input type="password" id="apiKeyInput" class="form-control" placeholder="sk-..." />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="closeApiModalBtn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="saveApiModalBtn">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      /* ============================================================
+         1. Built-In Templates & Structured Tool Schemas
+         ============================================================ */
+      const TEMPLATES = {
+        equipment: {
+          id: "equipment",
+          name: "Equipment Request",
+          description: "Request computers, monitors, peripherals, or workplace hardware.",
+          fields: {
+            formTitle: "Equipment Request",
+            department: "IT / Operations",
+            priority: "Normal",
+            summary: "Requesting standard workplace equipment required to support daily operational tasks and team productivity.",
+            notes: "Please specify hardware model/specs, delivery location, and manager approval if over standard budget."
+          }
+        },
+        travel: {
+          id: "travel",
+          name: "Travel Authorization",
+          description: "Request pre-approval for business travel, flights, lodging, and conferences.",
+          fields: {
+            formTitle: "Travel Authorization",
+            department: "Operations",
+            priority: "Normal",
+            summary: "Requesting pre-approval for business travel including round-trip transportation, hotel accommodations, and standard per diem.",
+            notes: "Attach event agenda or client itinerary. All bookings must comply with company travel policy."
+          }
+        }
+      };
+
+      // JSON Schema Function Calling Definitions (used by both Local Agent and Live LLM API)
+      const TOOL_SCHEMAS = [
+        {
+          type: "function",
+          function: {
+            name: "list_templates",
+            description: "Lists all available built-in form templates.",
+            parameters: { type: "object", properties: {} }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "load_template",
+            description: "Loads one of the built-in templates into the form.",
+            parameters: {
+              type: "object",
+              properties: {
+                template_id: {
+                  type: "string",
+                  enum: ["equipment", "travel"],
+                  description: "The template identifier: 'equipment' or 'travel'."
+                }
+              },
+              required: ["template_id"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "populate_form",
+            description: "Populates all five fields of the document form from user requirements.",
+            parameters: {
+              type: "object",
+              properties: {
+                formTitle: { type: "string" },
+                department: { type: "string" },
+                priority: { type: "string" },
+                summary: { type: "string" },
+                notes: { type: "string" }
+              },
+              required: ["formTitle", "department", "priority", "summary", "notes"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "update_form_fields",
+            description: "Updates only the specified fields on the form while preserving all other fields.",
+            parameters: {
+              type: "object",
+              properties: {
+                formTitle: { type: "string" },
+                department: { type: "string" },
+                priority: { type: "string" },
+                summary: { type: "string" },
+                notes: { type: "string" }
+              }
+            }
+          }
+        }
+      ];
+
+      /* ============================================================
+         2. DOM References & Form State Synchronization
+         ============================================================ */
+      const fieldIds = ["formTitle", "department", "priority", "summary", "notes"];
+      const fieldLabels = {
+        formTitle: "Form Title",
+        department: "Department",
+        priority: "Priority Level",
+        summary: "Summary / Description",
+        notes: "Additional Notes"
+      };
+
+      const elements = {
+        documentTitle: document.getElementById("documentTitle"),
+        formTitle: document.getElementById("formTitle"),
+        department: document.getElementById("department"),
+        priority: document.getElementById("priority"),
+        summary: document.getElementById("summary"),
+        notes: document.getElementById("notes"),
+        chatHistory: document.getElementById("chatHistory"),
+        chatForm: document.getElementById("chatForm"),
+        chatInput: document.getElementById("chatInput"),
+        sendBtn: document.getElementById("sendBtn"),
+        clearFormBtn: document.getElementById("clearFormBtn"),
+        downloadFileBtn: document.getElementById("downloadFileBtn"),
+        printPdfBtn: document.getElementById("printPdfBtn"),
+        toolbarStatus: document.getElementById("toolbarStatus"),
+        assistantModeLabel: document.getElementById("assistantModeLabel"),
+        apiModal: document.getElementById("apiModal"),
+        openApiModalBtn: document.getElementById("openApiModalBtn"),
+        closeApiModalBtn: document.getElementById("closeApiModalBtn"),
+        saveApiModalBtn: document.getElementById("saveApiModalBtn"),
+        apiEndpointInput: document.getElementById("apiEndpointInput"),
+        apiModelInput: document.getElementById("apiModelInput"),
+        apiKeyInput: document.getElementById("apiKeyInput")
+      };
+
+      const apiConfig = {
+        endpoint: "https://api.openai.com/v1/chat/completions",
+        model: "gpt-4o-mini",
+        apiKey: ""
+      };
+
+      const conversationHistory = [];
+
+      function getFormState() {
+        return {
+          formTitle: elements.formTitle.value,
+          department: elements.department.value,
+          priority: elements.priority.value,
+          summary: elements.summary.value,
+          notes: elements.notes.value
+        };
+      }
+
+      function syncDocumentHeading() {
+        const titleVal = elements.formTitle.value.trim();
+        elements.documentTitle.textContent = titleVal || "Blank Standard Form";
+      }
+
+      function autoResizeTextarea(el) {
+        if (el.tagName !== "TEXTAREA") return;
+        el.style.height = "auto";
+        el.style.height = Math.max(110, el.scrollHeight + 2) + "px";
+      }
+
+      function applyFormUpdates(updates, replaceAll = false) {
+        const changedFields = [];
+
+        fieldIds.forEach((id) => {
+          if (replaceAll || Object.prototype.hasOwnProperty.call(updates, id)) {
+            const newVal = updates[id] !== undefined ? String(updates[id]) : "";
+            if (elements[id].value !== newVal || replaceAll) {
+              elements[id].value = newVal;
+              changedFields.push(fieldLabels[id]);
+              flashField(elements[id]);
+            }
+            if (elements[id].tagName === "TEXTAREA") {
+              autoResizeTextarea(elements[id]);
+            }
+          }
+        });
+
+        syncDocumentHeading();
+        if (changedFields.length > 0) {
+          elements.toolbarStatus.textContent = "Updated: " + changedFields.join(", ");
+        }
+        return changedFields;
+      }
+
+      function flashField(el) {
+        el.classList.remove("field-updated");
+        void el.offsetWidth; // trigger reflow
+        el.classList.add("field-updated");
+        setTimeout(() => el.classList.remove("field-updated"), 1100);
+      }
+
+      function clearForm() {
+        fieldIds.forEach((id) => {
+          elements[id].value = "";
+          if (elements[id].tagName === "TEXTAREA") {
+            autoResizeTextarea(elements[id]);
+          }
+        });
+        syncDocumentHeading();
+        elements.toolbarStatus.textContent = "Form cleared";
+      }
+
+      /* ============================================================
+         3. Structured Tool Execution Dispatcher
+         ============================================================ */
+      function executeToolCall(toolName, args) {
+        if (toolName === "list_templates") {
+          return {
+            ok: true,
+            templates: Object.values(TEMPLATES).map((t) => ({
+              id: t.id,
+              name: t.name,
+              description: t.description
+            })),
+            badge: "Listed Templates"
+          };
+        }
+
+        if (toolName === "load_template") {
+          const tpl = TEMPLATES[args.template_id];
+          if (!tpl) {
+            return { ok: false, error: "Unknown template: " + args.template_id };
+          }
+          applyFormUpdates(tpl.fields, true);
+          return {
+            ok: true,
+            loadedTemplate: tpl.name,
+            fields: getFormState(),
+            badge: "Loaded Template: " + tpl.name
+          };
+        }
+
+        if (toolName === "populate_form") {
+          const changed = applyFormUpdates(args, true);
+          return {
+            ok: true,
+            updatedFields: changed,
+            fields: getFormState(),
+            badge: "Populated Form"
+          };
+        }
+
+        if (toolName === "update_form_fields") {
+          const sanitized = {};
+          fieldIds.forEach((id) => {
+            if (Object.prototype.hasOwnProperty.call(args, id) && args[id] !== undefined) {
+              sanitized[id] = args[id];
+            }
+          });
+          const changed = applyFormUpdates(sanitized, false);
+          return {
+            ok: true,
+            updatedFields: changed,
+            fields: getFormState(),
+            badge: changed.length ? "Updated: " + changed.join(", ") : null
+          };
+        }
+
+        return { ok: false, error: "Unknown tool: " + toolName };
+      }
+
+      /* ============================================================
+         4. Built-In Smart Local Agent (Zero-Setup Structured Output)
+         ============================================================ */
+      function runLocalStructuredAgent(userText, currentState) {
+        const text = userText.trim();
+        const lower = text.toLowerCase();
+
+        // A. Asking what forms / templates are available
+        const isAskingTemplates =
+          /(what|which|list|show|available|tell me|see|do you have).*?(form|forms|template|templates)/i.test(text) ||
+          /^(templates|forms|help|options)\??$/i.test(text);
+
+        if (isAskingTemplates) {
+          const res = executeToolCall("list_templates", {});
+          const lines = res.templates.map(
+            (t) => `• ${t.name} (${t.id}): ${t.description}`
+          );
+          return {
+            reply:
+              "Here are the built-in form templates I can load for you:\n\n" +
+              lines.join("\n") +
+              "\n\nYou can ask me to load either template by name, or just describe what you need and I will fill out the document for you.",
+            badge: res.badge
+          };
+        }
+
+        // B. Direct Template Load Request (without detailed overrides)
+        const hasLoadVerb = /\b(load|open|use|start|give me|pull up|switch to|select|create a blank)\b/i.test(text);
+        const mentionsEquipment = /\b(equipment|hardware|laptop|macbook|monitor|keyboard|mouse|desk|chair|device|computer|tablet|printer|workstation)\b/i.test(text);
+        const mentionsTravel = /\b(travel|trip|flight|hotel|lodging|airfare|conference|itinerary|travel authorization)\b/i.test(text);
+
+        const isPureTemplateLoad =
+          (hasLoadVerb || /^(equipment|equipment request|travel|travel authorization)(\s+form|\s+template)?$/i.test(text)) &&
+          text.split(/\s+/).length <= 10 &&
+          !(/\b(for|because|need|urgent|high|low|priority|department|to|in)\b/i.test(
+            text.replace(/^(load|open|use|start|give me|pull up|switch to|select)\s+(the\s+)?/i, "")
+                .replace(/\b(equipment request|travel authorization|equipment|travel|form|template)\b/gi, "")
+          ));
+
+        if (isPureTemplateLoad && (mentionsEquipment || mentionsTravel)) {
+          const templateId = mentionsTravel ? "travel" : "equipment";
+          const res = executeToolCall("load_template", { template_id: templateId });
+          return {
+            reply: `I've loaded the ${res.loadedTemplate} template into the workspace. Feel free to tell me any specifics—such as your department, priority level, or details to include in the summary and notes—and I'll update it right away.`,
+            badge: res.badge
+          };
+        }
+
+        // C. Targeted Follow-up Revisions (preserve existing fields)
+        const formHasContent = fieldIds.some((id) => currentState[id].trim().length > 0);
+        const revisionUpdates = detectFieldRevisions(text, currentState, formHasContent);
+
+        if (revisionUpdates && Object.keys(revisionUpdates).length > 0) {
+          const res = executeToolCall("update_form_fields", revisionUpdates);
+          const updatedList = res.updatedFields.length
+            ? res.updatedFields.join(", ")
+            : "the requested field(s)";
+          return {
+            reply: `Done — I've updated ${updatedList} on the form while keeping all other fields unchanged. Let me know if you'd like any further adjustments.`,
+            badge: res.badge
+          };
+        }
+
+        // D. Full Structured Extraction & Population from Freeform Description
+        const extracted = extractStructuredFormData(text, mentionsEquipment, mentionsTravel);
+        const res = executeToolCall("populate_form", extracted);
+        return {
+          reply: `I've populated the "${extracted.formTitle}" form on the right with the details you provided (Department: ${extracted.department}, Priority: ${extracted.priority}). You can ask me to refine any individual section—like changing the priority, updating the summary, or adding notes—anytime.`,
+          badge: res.badge
+        };
+      }
+
+      function detectFieldRevisions(text, currentState, formHasContent) {
+        const lower = text.toLowerCase();
+        const hasRevisionVerb =
+          /\b(change|update|set|make|revise|refine|edit|modify|replace|add|append|prepend|fix|correct|adjust|switch|rename|clear|remove)\b/i.test(text);
+        const mentionsSpecificField =
+          /\b(form\s*title|title|department|dept|priority(\s*level)?|summary|description|notes|additional\s*notes)\b/i.test(text);
+
+        // Require either a clear revision cue on a populated form or explicit field targeting
+        if (!mentionsSpecificField && !(formHasContent && hasRevisionVerb)) {
+          return null;
+        }
+
+        // If user says "create/fill out a new form..." treat as full population instead of partial edit
+        if (/\b(new form|from scratch|fill out a|draft a|create a)\b/i.test(text) && !mentionsSpecificField) {
+          return null;
+        }
+
+        const updates = {};
+
+        // 1. Form Title revision
+        const titleMatch =
+          text.match(/(?:change|update|set|rename|make|edit)\s+(?:the\s+)?(?:form\s+)?title\s+(?:to|as|:)\s*["“]?(.+?)["”]?(?=\s+(?:and|,|\.|with)\s+(?:department|dept|priority|summary|description|notes)|$)/i) ||
+          text.match(/(?:form\s+)?title\s*(?::|=)\s*["“]?(.+?)["”]?$/i);
+        if (titleMatch) {
+          updates.formTitle = cleanCapturedPhrase(titleMatch[1]);
+        }
+
+        // 2. Department revision
+        const deptExplicit =
+          text.match(/(?:change|update|set|switch|move|make|edit)\s+(?:the\s+)?(?:department|dept)\s+(?:to|as|for|:)\s*["“]?([a-zA-Z0-9 &\/-]+?)["”]?(?=\s+(?:and|,|\.)|\s+(?:priority|summary|description|notes|title)|$)/i) ||
+          text.match(/(?:make\s+it\s+for|it(?:'s| is)\s+for)\s+(?:the\s+)?([a-zA-Z0-9 &\/-]+?)\s+(?:department|team|dept)/i) ||
+          text.match(/(?:department|dept)\s*(?::|=)\s*["“]?([a-zA-Z0-9 &\/-]+?)["”]?(?=\s+(?:and|,|\.)|$)/i);
+        if (deptExplicit) {
+          updates.department = cleanCapturedPhrase(deptExplicit[1]);
+        }
+
+        // 3. Priority revision
+        const priorityExplicit =
+          text.match(/(?:change|update|set|make|elevate|lower|edit)\s+(?:the\s+)?priority(?:\s+level)?\s+(?:to|as|:)\s*["“]?([a-zA-Z0-9 -]+?)["”]?(?=\s+(?:and|,|\.)|\s+(?:department|dept|summary|description|notes|title)|$)/i) ||
+          text.match(/(?:make\s+it|set\s+it\s+to)\s+(urgent|critical|high|medium|normal|low)(?:\s+priority)?/i) ||
+          text.match(/priority(?:\s+level)?\s*(?::|=)\s*["“]?([a-zA-Z0-9 -]+?)["”]?(?=\s+(?:and|,|\.)|$)/i);
+        if (priorityExplicit) {
+          updates.priority = capitalizeWords(cleanCapturedPhrase(priorityExplicit[1]));
+        }
+
+        // 4. Summary / Description revision
+        const summaryExplicit =
+          text.match(/(?:change|update|set|replace|rewrite|revise|edit)\s+(?:the\s+)?(?:summary|description)(?:\s*\/\s*description)?\s+(?:to\s+say|to|with|as|:)\s*["“]?([\s\S]+?)["”]?(?=\s+(?:and\s+(?:set|change|update|add)|$)|$)/i) ||
+          text.match(/^(?:summary|description)\s*(?::|=)\s*["“]?([\s\S]+?)["”]?$/i);
+
+        const summaryAppend =
+          text.match(/(?:add|append|include)\s+(?:to\s+)?(?:the\s+)?(?:summary|description)\s*(?:that|:|with)?\s*["“]?([\s\S]+?)["”]?$/i) ||
+          text.match(/(?:add|include)\s+["“]?(.+?)["”]?\s+(?:to|in)\s+(?:the\s+)?(?:summary|description)/i);
+
+        if (summaryExplicit) {
+          updates.summary = cleanCapturedPhrase(summaryExplicit[1]);
+        } else if (summaryAppend) {
+          const addition = cleanCapturedPhrase(summaryAppend[1]);
+          updates.summary = currentState.summary.trim()
+            ? currentState.summary.trim().replace(/\.?$/, ".") + " " + capitalizeSentence(addition)
+            : capitalizeSentence(addition);
+        } else if (/\b(summary|description)\b/i.test(text) && /\b(shorter|concise|brief|formal|clearer)\b/i.test(text) && currentState.summary.trim()) {
+          updates.summary = refineSummaryStyle(currentState.summary, lower);
+        } else if (/\b(clear|remove|delete)\s+(?:the\s+)?(?:summary|description)\b/i.test(text)) {
+          updates.summary = "";
+        }
+
+        // 5. Additional Notes revision
+        const notesClear = /\b(clear|remove|delete)\s+(?:the\s+)?(?:additional\s+)?notes\b/i.test(text);
+        const notesReplace =
+          text.match(/(?:change|update|set|replace|rewrite|edit)\s+(?:the\s+)?(?:additional\s+)?notes\s+(?:to\s+say|to|with|as|:)\s*["“]?([\s\S]+?)["”]?$/i) ||
+          text.match(/^(?:additional\s+)?notes\s*(?::|=)\s*["“]?([\s\S]+?)["”]?$/i);
+        const notesAppend =
+          text.match(/(?:add|append|include)\s+(?:to\s+)?(?:the\s+)?(?:additional\s+)?notes(?:\s+that|\s+saying|\s+with|\s*:)?\s*["“]?([\s\S]+?)["”]?$/i) ||
+          text.match(/(?:add|include|put)\s+["“]?(.+?)["”]?\s+(?:to|in|under)\s+(?:the\s+)?(?:additional\s+)?notes/i);
+
+        if (notesClear) {
+          updates.notes = "";
+        } else if (notesReplace) {
+          updates.notes = cleanCapturedPhrase(notesReplace[1]);
+        } else if (notesAppend) {
+          const noteAddition = capitalizeSentence(cleanCapturedPhrase(notesAppend[1]));
+          updates.notes = currentState.notes.trim()
+            ? currentState.notes.trim() + "\n" + noteAddition
+            : noteAddition;
+        }
+
+        return Object.keys(updates).length > 0 ? updates : null;
+      }
+
+      function extractStructuredFormData(text, mentionsEquipment, mentionsTravel) {
+        // 1. Determine Form Title
+        let formTitle = "General Request Form";
+        if (mentionsEquipment) {
+          formTitle = TEMPLATES.equipment.fields.formTitle;
+        } else if (mentionsTravel) {
+          formTitle = TEMPLATES.travel.fields.formTitle;
+        } else {
+          const explicitTitle = text.match(/(?:titled|called|form\s+for|draft\s+an?|create\s+an?)\s+([A-Z][a-zA-Z0-9 &\/-]{2,40})/);
+          if (explicitTitle) {
+            formTitle = cleanCapturedPhrase(explicitTitle[1]);
+          } else if (/\bincident\b/i.test(text)) {
+            formTitle = "Incident Report";
+          } else if (/\bpurchase|procurement|vendor\b/i.test(text)) {
+            formTitle = "Purchase Request";
+          } else if (/\bleave|pto|vacation|time off\b/i.test(text)) {
+            formTitle = "Time Off Request";
+          }
+        }
+
+        // 2. Extract Department
+        let department = mentionsEquipment
+          ? TEMPLATES.equipment.fields.department
+          : mentionsTravel
+            ? TEMPLATES.travel.fields.department
+            : "General Operations";
+
+        const deptPattern = text.match(/(?:for|from|in|representing)\s+(?:the\s+)?([A-Za-z &\/-]{2,30}?)\s+(?:department|team|division|group|org)\b/i);
+        const knownDepts = [
+          "Engineering", "IT", "Human Resources", "HR", "Marketing", "Sales",
+          "Finance", "Operations", "Legal", "Product", "Design",
+          "Customer Support", "Support", "Security", "Research"
+        ];
+        if (deptPattern) {
+          department = capitalizeWords(cleanCapturedPhrase(deptPattern[1]));
+        } else {
+          for (const d of knownDepts) {
+            const re = new RegExp("\\b" + d.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i");
+            if (re.test(text)) {
+              department = d.toUpperCase() === "IT" || d.toUpperCase() === "HR" ? d.toUpperCase() : d;
+              break;
+            }
+          }
+        }
+
+        // 3. Extract Priority Level
+        let priority = "Normal";
+        if (/\b(urgent|asap|emergency|immediately|critical|p0|p1)\b/i.test(text)) {
+          priority = /\burgent\b/i.test(text) ? "Urgent" : /\bcritical\b/i.test(text) ? "Critical" : "High";
+        } else if (/\bhigh(\s+priority)?\b/i.test(text)) {
+          priority = "High";
+        } else if (/\bmedium(\s+priority)?\b/i.test(text)) {
+          priority = "Medium";
+        } else if (/\blow(\s+priority)?\b/i.test(text)) {
+          priority = "Low";
+        } else if (/\bnormal(\s+priority)?\b/i.test(text)) {
+          priority = "Normal";
+        }
+
+        // 4. Extract Additional Notes (deadlines, budget codes, approvals, explicit notes)
+        const noteParts = [];
+        const deadlineMatch = text.match(/\b(needed\s+by\s+[^.,;]+|by\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|next\s+week|end\s+of\s+week|eow|[a-z]+\s+\d{1,2}(?:st|nd|rd|th)?))/i);
+        if (deadlineMatch) {
+          noteParts.push("Target timeline: " + capitalizeSentence(deadlineMatch[0].trim()));
+        }
+        const budgetMatch = text.match(/\b(budget\s*(?:code)?\s*(?:is|:)?\s*[A-Z0-9-]+|cost\s*center\s*[A-Z0-9-]+|\$[\d,]+(?:\.\d{2})?)/i);
+        if (budgetMatch) {
+          noteParts.push("Budget reference: " + budgetMatch[0].trim());
+        }
+        const approvalMatch = text.match(/\b(approved\s+by\s+[^.,;]+)/i);
+        if (approvalMatch) {
+          noteParts.push(capitalizeSentence(approvalMatch[1].trim()));
+        }
+        const notes =
+          noteParts.length > 0
+            ? noteParts.join(". ") + "."
+            : mentionsEquipment
+              ? TEMPLATES.equipment.fields.notes
+              : mentionsTravel
+                ? TEMPLATES.travel.fields.notes
+                : "Please review and provide sign-off prior to processing.";
+
+        // 5. Construct Clean Professional Summary
+        let cleanedSummary = text
+          .replace(/^(?:please\s+)?(?:can\s+you\s+|could\s+you\s+)?(?:help\s+me\s+)?(?:fill\s+out|draft|create|prepare|make|generate|populate)\s+(?:a|an|the)?\s*(?:form|request|document)?\s*(?:for\s+me\s+)?(?:that\s+|where\s+|for\s+)?/i, "")
+          .replace(/\b(?:priority\s+(?:is|level\s+is)\s+(?:urgent|high|medium|normal|low)|(?:urgent|high|medium|normal|low)\s+priority)\b[.,;]?/gi, "")
+          .trim();
+
+        if (!cleanedSummary) {
+          cleanedSummary = mentionsEquipment
+            ? TEMPLATES.equipment.fields.summary
+            : mentionsTravel
+              ? TEMPLATES.travel.fields.summary
+              : text;
+        }
+
+        cleanedSummary = capitalizeSentence(cleanedSummary).replace(/\s{2,}/g, " ");
+        if (!/[.!?]$/.test(cleanedSummary)) {
+          cleanedSummary += ".";
+        }
+
+        return {
+          formTitle,
+          department,
+          priority,
+          summary: cleanedSummary,
+          notes
+        };
+      }
+
+      function refineSummaryStyle(summary, lowerInstruction) {
+        const trimmed = summary.trim();
+        if (/\b(shorter|concise|brief)\b/.test(lowerInstruction)) {
+          const firstSentence = trimmed.split(/(?<=[.!?])\s+/)[0];
+          return firstSentence.length > 20 ? firstSentence : trimmed;
+        }
+        if (/\bformal\b/.test(lowerInstruction)) {
+          return trimmed
+            .replace(/\bI need\b/gi, "This request is for")
+            .replace(/\bI'm\b/gi, "The requester is")
+            .replace(/\bcan't\b/gi, "cannot")
+            .replace(/\bwon't\b/gi, "will not");
+        }
+        return trimmed;
+      }
+
+      function cleanCapturedPhrase(str) {
+        return str.trim().replace(/^["“']|["”']$/g, "").replace(/[.,;]+$/, "").trim();
+      }
+
+      function capitalizeSentence(str) {
+        if (!str) return "";
+        return str.charAt(0).toUpperCase() + str.slice(1);
+      }
+
+      function capitalizeWords(str) {
+        return str.replace(/\b\w+/g, (w) => {
+          const upper = w.toUpperCase();
+          if (upper === "IT" || upper === "HR" || upper === "QA" || upper === "VP") return upper;
+          return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+        });
+      }
+
+      /* ============================================================
+         5. Optional Live OpenAI-Compatible Function Calling Client
+         ============================================================ */
+      async function runLiveLlmAgent(userText, currentState) {
+        const systemPrompt = [
+          "You are a helpful, concise Smart Form Assistant inside a document workspace.",
+          "Available built-in templates: 'equipment' (Equipment Request) and 'travel' (Travel Authorization).",
+          "Current form state JSON: " + JSON.stringify(currentState),
+          "Rules:",
+          "1. If the user asks what forms/templates are available, call list_templates and list them clearly.",
+          "2. If the user asks to load a template, call load_template.",
+          "3. If the user describes a form they need filled out, call populate_form with all 5 fields cleanly written.",
+          "4. If the user asks to revise specific fields on the existing form, call update_form_fields with ONLY the changed fields so other fields are preserved."
+        ].join("\n");
+
+        const messages = [
+          { role: "system", content: systemPrompt },
+          ...conversationHistory.slice(-8),
+          { role: "user", content: userText }
+        ];
+
+        const response = await fetch(apiConfig.endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + apiConfig.apiKey
+          },
+          body: JSON.stringify({
+            model: apiConfig.model,
+            messages,
+            tools: TOOL_SCHEMAS,
+            tool_choice: "auto"
+          })
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error("API error (" + response.status + "): " + errText);
+        }
+
+        const data = await response.json();
+        const msg = data.choices && data.choices[0] && data.choices[0].message;
+        if (!msg) throw new Error("Empty response from API");
+
+        let badges = [];
+        if (Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
+          const followUpMessages = [...messages, msg];
+          for (const tc of msg.tool_calls) {
+            let parsedArgs = {};
+            try {
+              parsedArgs = JSON.parse(tc.function.arguments || "{}");
+            } catch (_) {}
+            const toolResult = executeToolCall(tc.function.name, parsedArgs);
+            if (toolResult.badge) badges.push(toolResult.badge);
+
+            followUpMessages.push({
+              role: "tool",
+              tool_call_id: tc.id,
+              content: JSON.stringify(toolResult)
+            });
+          }
+
+          if (msg.content && msg.content.trim()) {
+            return { reply: msg.content.trim(), badge: badges.join(" • ") };
+          }
+
+          const secondRes = await fetch(apiConfig.endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer " + apiConfig.apiKey
+            },
+            body: JSON.stringify({
+              model: apiConfig.model,
+              messages: followUpMessages
+            })
+          });
+          const secondData = await secondRes.json();
+          const finalContent =
+            secondData.choices &&
+            secondData.choices[0] &&
+            secondData.choices[0].message &&
+            secondData.choices[0].message.content;
+
+          return {
+            reply: finalContent || "I've updated the document form for you.",
+            badge: badges.join(" • ")
+          };
+        }
+
+        return { reply: msg.content || "How can I help with your form?", badge: null };
+      }
+
+      /* ============================================================
+         6. Chat UI & Event Handlers
+         ============================================================ */
+      function appendMessage(role, text, badgeText = null) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "chat-message " + role;
+
+        const sender = document.createElement("div");
+        sender.className = "message-sender";
+        sender.textContent = role === "user" ? "You" : "Form Assistant";
+
+        const bubble = document.createElement("div");
+        bubble.className = "message-bubble";
+        bubble.textContent = text;
+
+        wrapper.appendChild(sender);
+        wrapper.appendChild(bubble);
+
+        if (badgeText) {
+          const badge = document.createElement("div");
+          badge.className = "tool-badge";
+          badge.textContent = badgeText;
+          wrapper.appendChild(badge);
+        }
+
+        elements.chatHistory.appendChild(wrapper);
+        elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight;
+      }
+
+      async function handleUserMessage(userText) {
+        appendMessage("user", userText);
+        conversationHistory.push({ role: "user", content: userText });
+
+        elements.chatInput.disabled = true;
+        elements.sendBtn.disabled = true;
+
+        try {
+          const currentState = getFormState();
+          let result;
+
+          if (apiConfig.apiKey.trim()) {
+            result = await runLiveLlmAgent(userText, currentState);
+          } else {
+            result = runLocalStructuredAgent(userText, currentState);
+          }
+
+          appendMessage("assistant", result.reply, result.badge);
+          conversationHistory.push({ role: "assistant", content: result.reply });
+        } catch (err) {
+          appendMessage(
+            "assistant",
+            "I encountered an issue reaching the configured API (" + err.message + "). Falling back to the built-in agent."
+          );
+          const fallback = runLocalStructuredAgent(userText, getFormState());
+          appendMessage("assistant", fallback.reply, fallback.badge);
+        } finally {
+          elements.chatInput.disabled = false;
+          elements.sendBtn.disabled = false;
+          elements.chatInput.focus();
+        }
+      }
+
+      // Chat Form Submission
+      elements.chatForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const text = elements.chatInput.value.trim();
+        if (!text) return;
+        elements.chatInput.value = "";
+        handleUserMessage(text);
+      });
+
+      // Live synchronization for manual typing in the right-hand form
+      elements.formTitle.addEventListener("input", () => {
+        syncDocumentHeading();
+        elements.toolbarStatus.textContent = "Edited manually";
+      });
+
+      fieldIds.forEach((id) => {
+        if (id !== "formTitle") {
+          elements[id].addEventListener("input", () => {
+            elements.toolbarStatus.textContent = "Edited manually";
+            if (elements[id].tagName === "TEXTAREA") {
+              autoResizeTextarea(elements[id]);
+            }
+          });
+        }
+      });
+
+      // Toolbar: Clear Form
+      elements.clearFormBtn.addEventListener("click", clearForm);
+
+      // Toolbar: Download File (.json export)
+      elements.downloadFileBtn.addEventListener("click", () => {
+        const state = getFormState();
+        const exportPayload = {
+          documentTitle: state.formTitle.trim() || "Blank Standard Form",
+          ...state,
+          exportedAt: new Date().toISOString()
+        };
+        const slug = (exportPayload.documentTitle || "standard-form")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
+
+        const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
+          type: "application/json;charset=utf-8"
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = (slug || "standard-form") + ".json";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        elements.toolbarStatus.textContent = "Exported " + link.download;
+      });
+
+      // Toolbar: Print / Save PDF
+      elements.printPdfBtn.addEventListener("click", () => {
+        autoResizeTextarea(elements.summary);
+        autoResizeTextarea(elements.notes);
+        window.print();
+      });
+
+      // Optional API Settings Modal
+      elements.openApiModalBtn.addEventListener("click", () => {
+        elements.apiEndpointInput.value = apiConfig.endpoint;
+        elements.apiModelInput.value = apiConfig.model;
+        elements.apiKeyInput.value = apiConfig.apiKey;
+        elements.apiModal.classList.add("open");
+      });
+
+      elements.closeApiModalBtn.addEventListener("click", () => {
+        elements.apiModal.classList.remove("open");
+      });
+
+      elements.saveApiModalBtn.addEventListener("click", () => {
+        apiConfig.endpoint = elements.apiEndpointInput.value.trim() || apiConfig.endpoint;
+        apiConfig.model = elements.apiModelInput.value.trim() || apiConfig.model;
+        apiConfig.apiKey = elements.apiKeyInput.value.trim();
+        elements.assistantModeLabel.textContent = apiConfig.apiKey
+          ? "Live LLM API (" + apiConfig.model + ")"
+          : "Built-in Structured Agent";
+        elements.apiModal.classList.remove("open");
+      });
+
+      elements.apiModal.addEventListener("click", (e) => {
+        if (e.target === elements.apiModal) {
+          elements.apiModal.classList.remove("open");
+        }
+      });
+
+      // Initial Welcome Message
+      appendMessage(
+        "assistant",
+        "Hello! I'm your Smart Form Assistant. Ask me what forms are available, ask me to load a template (like Equipment Request or Travel Authorization), or describe what you need and I'll populate the document on the right automatically."
+      );
+    })();
+  </script>
+</body>
+</html>
